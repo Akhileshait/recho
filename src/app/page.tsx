@@ -6,19 +6,29 @@ import { usePlayerStore } from '@/store/usePlayerStore';
 import { SongCard } from '@/components/SongCard'; // Client-side store cannot be used directly in Server Component
 // We need a Client Component wrapper for the play button or pass data to a client component
 
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  genre?: string;
+  url: string;
+  cover_url?: string;
+  played_at?: Date;
+}
+
 // Helper to fetch data
 async function getData(userId: string) {
   // 1. Get Recommendations
   const engine = new RecommendationEngine();
   const recommendationsRefs = await engine.recommend(userId);
   
-  let recommendedSongs: any[] = [];
+  let recommendedSongs: Song[] = [];
   if (recommendationsRefs.length > 0) {
       const songIds = recommendationsRefs.map(r => r.songId);
       const placeholders = songIds.map((_, i) => `$${i + 1}`).join(',');
       const res = await query(`SELECT * FROM songs WHERE id IN (${placeholders})`, songIds);
       // Sort back by recommendation score order
-      recommendedSongs = songIds.map(id => res.rows.find((s: any) => s.id === id)).filter(Boolean);
+      recommendedSongs = songIds.map(id => res.rows.find((s: any) => s.id === id)).filter(Boolean) as Song[];
   }
 
   // 2. Get Recently Played
@@ -31,7 +41,7 @@ async function getData(userId: string) {
        LIMIT 10`, 
        [userId]
   );
-  const recentSongs = historyRes.rows;
+  const recentSongs: Song[] = historyRes.rows;
 
   return { recommendedSongs, recentSongs };
 }
@@ -84,7 +94,5 @@ export default async function Home() {
   );
 }
 
-// Client Component Wrapper for Song Card to handle Play action
-// import { SongCard } from '@/components/SongCard'; // Already imported or needs to be if not.
 
 
