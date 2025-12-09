@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { getServerSession } from 'next-auth';
-import { SessionProvider } from 'next-auth/react';
 import './globals.css';
 import { Sidebar } from '@/components/Sidebar';
 import { Player } from '@/components/Player';
-import { SocketProvider } from '@/providers/SocketProvider';
+import { Providers } from '@/providers/Providers';
 import { cn } from '@/lib/utils';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
@@ -26,17 +25,15 @@ export default async function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={cn(inter.className, "h-screen flex flex-col overflow-hidden bg-background text-foreground")}>
-        <SessionProvider session={session}>
-          <SocketProvider>
-            <div className="flex-1 flex overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 overflow-y-auto p-8 relative">
-                {children}
-              </main>
-            </div>
-            <Player />
-          </SocketProvider>
-        </SessionProvider>
+        <Providers session={session}>
+          <div className="flex-1 flex overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto p-8 relative">
+              {children}
+            </main>
+          </div>
+          <Player />
+        </Providers>
       </body>
     </html>
   );
