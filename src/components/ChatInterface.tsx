@@ -16,7 +16,7 @@ export function ChatInterface() {
   const { friends } = useFriendsStore();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeFriend = friends.find((f) => f.id === activeChat);
   const chatMessages = activeChat ? messages[activeChat] || [] : [];
