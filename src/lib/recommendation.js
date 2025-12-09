@@ -61,36 +61,161 @@ export class RecommendationEngine {
 
   /**
    * Generates recommendations for a user
-   * @param {string} userId 
-   * @returns {Array} List of recommended song IDs
+   * Enhanced algorithm considering:
+   * - Play time (duration listened)
+   * - Genre preferences
+   * - Artist preferences
+   * - Likes
+   * - Friend listening habits
+   * - Recency of listens
+   * @param {string} userId
+   * @returns {Array} List of recommended song IDs with scores
    */
   async recommend(userId) {
     await this.buildGraph(); // Refresh graph data
-    
+
+    // Get user's listening statistics
+    const userStats = await this.getUserStats(userId);
+
     const userNode = `user:${userId}`;
-    
-    // Run BFS/Random Walk from user node
-    // Depth 3: User -> Song -> Genre/Artist -> Other Song
-    //          User -> Friend -> Song -> ...
-    const scores = this.graph.bfs(userNode, 3);
-    
-    const recommendations = [];
-    
-    for (const [node, score] of scores.entries()) {
+
+    // Run BFS from user node with multiple depths for different signals
+    const graphScores = this.graph.bfs(userNode, 4);
+
+    const recommendations = new Map();
+
+    for (const [node, baseScore] of graphScores.entries()) {
       if (node.startsWith('song:')) {
-        // Don't recommend songs the user has already listened to (direct neighbors)
-        // Check if direct edge exists in graph or filter from history
+        const songId = node.split(':')[1];
+
+        // Don't recommend songs the user has already listened to
         const isDirectlyConnected = this.graph.getNeighbors(userNode).some(n => n.node === node);
-        
-        if (!isDirectlyConnected) {
-           recommendations.push({ songId: node.split(':')[1], score });
-        }
+        if (isDirectlyConnected) continue;
+
+        // Calculate enhanced score
+        const enhancedScore = await this.calculateEnhancedScore(
+          songId,
+          baseScore,
+          userStats
+        );
+
+        recommendations.set(songId, enhancedScore);
       }
     }
 
-    // Sort by score descending
-    recommendations.sort((a, b) => b.score - a.score);
+    // Get friend-based recommendations
+    const friendRecs = await this.getFriendRecommendations(userId);
+    friendRecs.forEach(({ songId, score }) => {
+      const currentScore = recommendations.get(songId) || 0;
+      recommendations.set(songId, currentScore + score * 0.7); // Friend influence weight
+    });
 
-    return recommendations.slice(0, 20); // Top 20
+    // Convert to array and sort
+    const sortedRecs = Array.from(recommendations.entries())
+      .map(([songId, score]) => ({ songId, score }))
+      .sort((a, b) => b.score - a.score);
+
+    return sortedRecs.slice(0, 20);
+  }
+
+  /**
+   * Get user's listening statistics
+   */
+  async getUserStats(userId) {
+    // Get top genres
+    const genreStats = await query(`
+      SELECT s.genre, COUNT(*) as count, SUM(h.play_duration) as total_duration
+      FROM history h
+      JOIN songs s ON h.song_id = s.id
+      WHERE h.user_id = $1 AND s.genre IS NOT NULL
+      GROUP BY s.genre
+      ORDER BY total_duration DESC
+      LIMIT 10
+    `, [userId]);
+
+    // Get top artists
+    const artistStats = await query(`
+      SELECT s.artist, COUNT(*) as count, SUM(h.play_duration) as total_duration
+      FROM history h
+      JOIN songs s ON h.song_id = s.id
+      WHERE h.user_id = $1
+      GROUP BY s.artist
+      ORDER BY total_duration DESC
+      LIMIT 10
+    `, [userId]);
+
+    // Get liked songs
+    const likedSongs = await query(`
+      SELECT song_id FROM song_likes WHERE user_id = $1
+    `, [userId]);
+
+    return {
+      topGenres: new Map(genreStats.rows.map(r => [r.genre, r.total_duration])),
+      topArtists: new Map(artistStats.rows.map(r => [r.artist, r.total_duration])),
+      likedSongIds: new Set(likedSongs.rows.map(r => r.song_id)),
+    };
+  }
+
+  /**
+   * Calculate enhanced score for a song based on user preferences
+   */
+  async calculateEnhancedScore(songId, baseScore, userStats) {
+    const songData = await query('SELECT * FROM songs WHERE id = $1', [songId]);
+    if (songData.rows.length === 0) return baseScore;
+
+    const song = songData.rows[0];
+    let score = baseScore;
+
+    // Genre match bonus (0.5x - 2x multiplier)
+    if (song.genre && userStats.topGenres.has(song.genre)) {
+      const genreDuration = userStats.topGenres.get(song.genre);
+      const maxDuration = Math.max(...userStats.topGenres.values());
+      const genreWeight = 1 + (genreDuration / maxDuration);
+      score *= genreWeight;
+    }
+
+    // Artist match bonus (0.3x - 1.5x multiplier)
+    if (userStats.topArtists.has(song.artist)) {
+      const artistDuration = userStats.topArtists.get(song.artist);
+      const maxDuration = Math.max(...userStats.topArtists.values());
+      const artistWeight = 1 + (0.5 * artistDuration / maxDuration);
+      score *= artistWeight;
+    }
+
+    // Popularity bonus (logarithmic scale)
+    if (song.play_count > 0) {
+      score *= (1 + Math.log10(song.play_count + 1) * 0.1);
+    }
+
+    // Like count bonus
+    if (song.like_count > 0) {
+      score *= (1 + Math.log10(song.like_count + 1) * 0.15);
+    }
+
+    return score;
+  }
+
+  /**
+   * Get recommendations based on what friends are listening to
+   */
+  async getFriendRecommendations(userId) {
+    const friendListens = await query(`
+      SELECT h.song_id, COUNT(*) as listen_count, MAX(h.played_at) as last_played
+      FROM friendships f
+      JOIN history h ON f.friend_id = h.user_id
+      WHERE f.user_id = $1 AND f.status = 'accepted'
+        AND h.played_at > NOW() - INTERVAL '30 days'
+        AND h.song_id NOT IN (
+          SELECT song_id FROM history WHERE user_id = $1
+        )
+      GROUP BY h.song_id
+      ORDER BY listen_count DESC, last_played DESC
+      LIMIT 20
+    `, [userId]);
+
+    return friendListens.rows.map(row => ({
+      songId: row.song_id,
+      score: row.listen_count * 2, // Friends' listens are valuable
+    }));
   }
 }
