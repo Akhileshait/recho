@@ -1,22 +1,55 @@
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RecommendationEngine } from '@/lib/recommendation';
+import { query } from '@/lib/db';
+import { usePlayerStore } from '@/store/usePlayerStore'; 
+import { SongCard } from '@/components/SongCard'; // Client-side store cannot be used directly in Server Component
+// We need a Client Component wrapper for the play button or pass data to a client component
 
-export default function Home() {
-  // Mock data for UI development
-  const recommendedSongs = [
-    { id: 1, title: 'Midnight City', artist: 'M83', cover: 'https://placehold.co/150' },
-    { id: 2, title: 'Starboy', artist: 'The Weeknd', cover: 'https://placehold.co/150' },
-    { id: 3, title: 'Levitating', artist: 'Dua Lipa', cover: 'https://placehold.co/150' },
-    { id: 4, title: 'Heat Waves', artist: 'Glass Animals', cover: 'https://placehold.co/150' },
-    { id: 5, title: 'Stay', artist: 'The Kid LAROI', cover: 'https://placehold.co/150' },
-  ];
+// Helper to fetch data
+async function getData(userId: string) {
+  // 1. Get Recommendations
+  const engine = new RecommendationEngine();
+  const recommendationsRefs = await engine.recommend(userId);
+  
+  let recommendedSongs: any[] = [];
+  if (recommendationsRefs.length > 0) {
+      const songIds = recommendationsRefs.map(r => r.songId);
+      const placeholders = songIds.map((_, i) => `$${i + 1}`).join(',');
+      const res = await query(`SELECT * FROM songs WHERE id IN (${placeholders})`, songIds);
+      // Sort back by recommendation score order
+      recommendedSongs = songIds.map(id => res.rows.find((s: any) => s.id === id)).filter(Boolean);
+  }
 
-  const recentSongs = [
-    { id: 6, title: 'Blinding Lights', artist: 'The Weeknd', cover: 'https://placehold.co/150' },
-    { id: 7, title: 'Good 4 U', artist: 'Olivia Rodrigo', cover: 'https://placehold.co/150' },
-    { id: 8, title: 'Montero', artist: 'Lil Nas X', cover: 'https://placehold.co/150' },
-    { id: 9, title: 'Peaches', artist: 'Justin Bieber', cover: 'https://placehold.co/150' },
-  ];
+  // 2. Get Recently Played
+  const historyRes = await query(
+      `SELECT DISTINCT ON (s.id) s.*, h.played_at 
+       FROM history h 
+       JOIN songs s ON h.song_id = s.id 
+       WHERE h.user_id = $1 
+       ORDER BY s.id, h.played_at DESC 
+       LIMIT 10`, 
+       [userId]
+  );
+  const recentSongs = historyRes.rows;
+
+  return { recommendedSongs, recentSongs };
+}
+
+// Temporary: Hardcoded User ID for Demo (The one created in seed.js)
+// In real app, get from session
+const DEMO_USER_EMAIL = 'demo@example.com';
+
+export default async function Home() {
+  // Fetch Demo User ID
+  const userRes = await query('SELECT id FROM users WHERE email = $1', [DEMO_USER_EMAIL]);
+  const userId = userRes.rows[0]?.id;
+
+  if (!userId) {
+      return <div className="p-8">Please run seed script to create demo user.</div>;
+  }
+
+  const { recommendedSongs, recentSongs } = await getData(userId);
 
   return (
     <div className="space-y-8">
@@ -27,23 +60,10 @@ export default function Home() {
             <Button variant="link" className="text-muted-foreground">See all</Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {recommendedSongs.map((song) => (
-                <div key={song.id} className="group relative bg-card p-4 rounded-md hover:bg-muted/50 transition-colors">
-                    <div className="relative aspect-square mb-4 overflow-hidden rounded-md">
-                        <img 
-                            src={song.cover} 
-                            alt={song.title} 
-                            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" 
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Button size="icon" className="rounded-full h-12 w-12 bg-primary text-primary-foreground hover:scale-105 transition-transform">
-                                <Play className="w-5 h-5 ml-1 fill-current" />
-                            </Button>
-                        </div>
-                    </div>
-                    <h3 className="font-semibold truncate">{song.title}</h3>
-                    <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
-                </div>
+            {recommendedSongs.length === 0 ? (
+                <p className="text-muted-foreground col-span-full">Listen to more songs to get recommendations!</p>
+            ) : recommendedSongs.map((song) => (
+                <SongCard key={song.id} song={song} />
             ))}
         </div>
       </section>
@@ -56,25 +76,15 @@ export default function Home() {
         </div>
          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {recentSongs.map((song) => (
-                <div key={song.id} className="group relative bg-card p-4 rounded-md hover:bg-muted/50 transition-colors">
-                    <div className="relative aspect-square mb-4 overflow-hidden rounded-md">
-                        <img 
-                            src={song.cover} 
-                            alt={song.title} 
-                            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" 
-                        />
-                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Button size="icon" className="rounded-full h-12 w-12 bg-primary text-primary-foreground hover:scale-105 transition-transform">
-                                <Play className="w-5 h-5 ml-1 fill-current" />
-                            </Button>
-                        </div>
-                    </div>
-                    <h3 className="font-semibold truncate">{song.title}</h3>
-                    <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
-                </div>
+                <SongCard key={song.id} song={song} />
             ))}
         </div>
       </section>
     </div>
   );
 }
+
+// Client Component Wrapper for Song Card to handle Play action
+// import { SongCard } from '@/components/SongCard'; // Already imported or needs to be if not.
+
+
