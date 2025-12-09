@@ -20,13 +20,14 @@ const seed = async () => {
     const userIds = [];
     for (const u of users) {
       const res = await pool.query(
-        `INSERT INTO users (email, name, image) VALUES ($1, $2, $3) 
+        `INSERT INTO users (email, name, image) VALUES ($1, $2, $3)
          ON CONFLICT (email) DO UPDATE SET name = $2 RETURNING id`,
         [u.email, u.name, u.image]
       );
       userIds.push(res.rows[0].id);
     }
     const [demoId, aliceId, bobId] = userIds;
+    console.log('✓ Users created/updated');
 
     // 2. Create Songs
     const songs = [
@@ -43,29 +44,75 @@ const seed = async () => {
 
     const songIds = [];
     for (const s of songs) {
-       const res = await pool.query(
-         `INSERT INTO songs (title, artist, genre, url, cover_url) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-         [s.title, s.artist, s.genre, s.url, 'https://placehold.co/300']
+       // Check if song exists first
+       let existing = await pool.query(
+         'SELECT id FROM songs WHERE title = $1 AND artist = $2',
+         [s.title, s.artist]
        );
-       songIds.push(res.rows[0].id);
+
+       if (existing.rows.length > 0) {
+         songIds.push(existing.rows[0].id);
+       } else {
+         const res = await pool.query(
+           `INSERT INTO songs (title, artist, genre, url, cover_url)
+            VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+           [s.title, s.artist, s.genre, s.url, 'https://placehold.co/300']
+         );
+         songIds.push(res.rows[0].id);
+       }
     }
+    console.log('✓ Songs created/updated');
 
     // 3. Create History (Demo User listened to some songs)
-    await pool.query('INSERT INTO history (user_id, song_id) VALUES ($1, $2)', [demoId, songIds[0]]); // Midnight City
-    await pool.query('INSERT INTO history (user_id, song_id) VALUES ($1, $2)', [demoId, songIds[1]]); // Starboy
-    await pool.query('INSERT INTO history (user_id, song_id) VALUES ($1, $2)', [demoId, songIds[5]]); // Blinding Lights
+    await pool.query(
+      `INSERT INTO history (user_id, song_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [demoId, songIds[0]]
+    );
+    await pool.query(
+      `INSERT INTO history (user_id, song_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [demoId, songIds[1]]
+    );
+    await pool.query(
+      `INSERT INTO history (user_id, song_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [demoId, songIds[5]]
+    );
+    console.log('✓ History added');
 
     // 4. Create Friendships
-    await pool.query('INSERT INTO friendships (user_id, friend_id, status) VALUES ($1, $2, $3)', [demoId, aliceId, 'accepted']);
-    await pool.query('INSERT INTO friendships (user_id, friend_id, status) VALUES ($1, $2, $3)', [aliceId, demoId, 'accepted']);
+    await pool.query(
+      `INSERT INTO friendships (user_id, friend_id, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, friend_id) DO UPDATE SET status = $3`,
+      [demoId, aliceId, 'accepted']
+    );
+    await pool.query(
+      `INSERT INTO friendships (user_id, friend_id, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, friend_id) DO UPDATE SET status = $3`,
+      [aliceId, demoId, 'accepted']
+    );
+    console.log('✓ Friendships created');
 
     // 5. Friend History (Alice listened to something else)
-    await pool.query('INSERT INTO history (user_id, song_id) VALUES ($1, $2)', [aliceId, songIds[2]]); // Levitating
-    await pool.query('INSERT INTO history (user_id, song_id) VALUES ($1, $2)', [aliceId, songIds[4]]); // Stay
+    await pool.query(
+      `INSERT INTO history (user_id, song_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [aliceId, songIds[2]]
+    );
+    await pool.query(
+      `INSERT INTO history (user_id, song_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [aliceId, songIds[4]]
+    );
+    console.log('✓ Friend history added');
 
-    console.log('Seeding completed!');
+    console.log('\n✅ Seeding completed successfully!');
   } catch (err) {
-    console.error('Seeding failed:', err);
+    console.error('❌ Seeding failed:', err);
+    process.exit(1);
   } finally {
     await pool.end();
   }

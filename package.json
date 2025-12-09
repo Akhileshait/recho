@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "node server.js",
     "db:migrate": "node scripts/migrate.js",
+    "db:migrate:fix": "node scripts/run-migration.js",
     "db:seed": "node scripts/seed.js"
   },
   "dependencies": {
