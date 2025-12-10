@@ -39,7 +39,28 @@ export async function GET(request: NextRequest) {
       [userId]
     );
 
-    const friends = friendshipsRes.rows.map(row => ({
+    interface FriendshipRow {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      is_online: boolean;
+      current_song_id: string | null;
+      status: string;
+      request_status: string;
+    }
+
+    interface Friend {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      is_online: boolean;
+      current_song_id: string | null;
+      status: string;
+    }
+
+    const friends: Friend[] = friendshipsRes.rows.map((row: FriendshipRow) => ({
       id: row.id,
       name: row.name,
       email: row.email,
