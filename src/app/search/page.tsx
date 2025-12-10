@@ -254,11 +254,16 @@ export default function SearchPage() {
               </div>
 
               {/* Cover Image */}
-              <img
-                src={song.cover_url || '/placeholder-album.png'}
-                alt={song.title}
-                className="w-12 h-12 rounded shadow-md"
-              />
+              <div className="relative w-12 h-12 shrink-0">
+                <img
+                  src={song.cover_url || 'https://placehold.co/300x300/1a1a1a/666666?text=♪'}
+                  alt={song.title}
+                  className="w-12 h-12 rounded object-cover shadow-md"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://placehold.co/300x300/1a1a1a/666666?text=♪';
+                  }}
+                />
+              </div>
 
               {/* Song Info */}
               <div className="flex-1 min-w-0">
