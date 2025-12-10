@@ -3,6 +3,9 @@ import { RecommendationEngine } from '@/lib/recommendation';
 import { query } from '@/lib/db';
 import { SongCard } from '@/components/SongCard';
 import { ChevronRight, TrendingUp, History, Sparkles } from 'lucide-react';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import Link from 'next/link';
 
 interface Song {
   id: string;
@@ -51,29 +54,56 @@ async function getData(userId: string) {
   return { recommendedSongs, recentSongs, trendingSongs };
 }
 
-const DEMO_USER_EMAIL = 'demo@example.com';
-
 export default async function Home() {
-  const userRes = await query('SELECT id FROM users WHERE email = $1', [DEMO_USER_EMAIL]);
-  const userId = userRes.rows[0]?.id;
+  const session = await getServerSession(authOptions);
 
-  if (!userId) {
+  // If not logged in, show sign-in prompt
+  if (!session?.user?.email) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-4 animate-fade-in">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto">
-            <Sparkles className="w-8 h-8 text-white" />
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center space-y-6 animate-fade-in max-w-md">
+          <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto shadow-2xl">
+            <Sparkles className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-2xl font-bold">Welcome to Recho</h2>
-          <p className="text-muted-foreground max-w-md">
-            Please run the seed script to create demo user and start discovering music.
-          </p>
-          <Button>Run npm run db:seed</Button>
+          <div>
+            <h2 className="text-3xl font-bold mb-3">Welcome to Recho</h2>
+            <p className="text-muted-foreground mb-6">
+              Discover music with friends in real-time. Sign in to get started.
+            </p>
+            <Button
+              size="lg"
+              className="gap-2"
+              onClick={() => window.location.href = '/auth/signin'}
+            >
+              Get Started
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
+  const userRes = await query('SELECT id, name, email, image FROM users WHERE email = $1', [session.user.email]);
+  const user = userRes.rows[0];
+
+  if (!user) {
+    // User logged in with Google but not in our database yet
+    // Show a loading state or create the user
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center space-y-4 animate-fade-in">
+          <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto animate-pulse">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold">Setting up your account...</h2>
+          <p className="text-muted-foreground">Please wait a moment.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const userId = user.id;
   const { recommendedSongs, recentSongs, trendingSongs } = await getData(userId);
 
   return (
@@ -81,12 +111,20 @@ export default async function Home() {
       {/* Hero Section */}
       <section className="animate-fade-in">
         <div className="bg-gradient-to-br from-primary/20 via-accent/20 to-background rounded-2xl p-8 mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
+          <div className="flex items-center gap-4 mb-4">
+            {user.image ? (
+              <img
+                src={user.image}
+                alt={user.name || 'Profile'}
+                className="w-16 h-16 rounded-full border-2 border-primary shadow-lg"
+              />
+            ) : (
+              <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+            )}
             <div>
-              <h1 className="text-3xl font-bold">Good {getTimeOfDay()}</h1>
+              <h1 className="text-3xl font-bold">Good {getTimeOfDay()}, {user.name?.split(' ')[0] || 'there'}!</h1>
               <p className="text-muted-foreground">Ready to discover new music?</p>
             </div>
           </div>

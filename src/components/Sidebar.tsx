@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Library, Users, Search, PlusCircle, Music2, Heart, Clock, Radio } from 'lucide-react';
+import { Home, Library, Users, Search, PlusCircle, Music2, Heart, Clock, Radio, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useSession, signOut } from 'next-auth/react';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
@@ -24,6 +25,7 @@ const library = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <aside className="w-64 bg-black flex flex-col gap-2 p-2 h-full">
@@ -157,6 +159,40 @@ export function Sidebar() {
             ))}
           </div>
         </div>
+
+        {/* User Profile Section */}
+        {session?.user && (
+          <div className="mt-auto pt-4 border-t border-border">
+            <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 smooth-transition">
+              {session.user.image ? (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || 'Profile'}
+                  className="w-10 h-10 rounded-full border-2 border-primary"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold">
+                    {session.user.name?.[0] || session.user.email?.[0] || '?'}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{session.user.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive smooth-transition"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </nav>
     </aside>
   );
