@@ -1,10 +1,32 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Music2, Users, Radio } from "lucide-react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignIn() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/");
+    }
+  }, [status, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-black">
+        <div className="text-center">
+          <Music2 className="mx-auto h-16 w-16 text-primary animate-pulse" />
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-black">
       <div className="max-w-md w-full space-y-8 p-8 bg-card/50 backdrop-blur-xl rounded-2xl border border-white/10">

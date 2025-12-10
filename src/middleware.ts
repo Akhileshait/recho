@@ -14,10 +14,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/search",
-    "/playlists/:path*",
-    "/friends/:path*",
-    "/chat/:path*",
-    "/settings/:path*",
+    // Only protect routes that exist and require authentication
+    // Home page ("/") is intentionally NOT protected so it can show sign-in prompt
   ],
 };
