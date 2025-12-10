@@ -70,14 +70,12 @@ export default async function Home() {
             <p className="text-muted-foreground mb-6">
               Discover music with friends in real-time. Sign in to get started.
             </p>
-            <Button
-              size="lg"
-              className="gap-2"
-              onClick={() => window.location.href = '/auth/signin'}
-            >
-              Get Started
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+            <Link href="/auth/signin">
+              <Button size="lg" className="gap-2">
+                Get Started
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
