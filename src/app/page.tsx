@@ -41,12 +41,12 @@ async function getData(userId: string) {
   const recentSongs: Song[] = historyRes.rows;
 
   const trendingRes = await query(
-    `SELECT s.*, COUNT(h.id) as play_count
+    `SELECT s.*, COUNT(h.id) as recent_play_count
      FROM songs s
      JOIN history h ON s.id = h.song_id
      WHERE h.played_at > NOW() - INTERVAL '7 days'
      GROUP BY s.id
-     ORDER BY play_count DESC
+     ORDER BY recent_play_count DESC
      LIMIT 10`
   );
   const trendingSongs: Song[] = trendingRes.rows;

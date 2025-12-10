@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     // Add to listening history
     await query(
-      `INSERT INTO listening_history (user_id, song_id, played_at, play_duration)
+      `INSERT INTO history (user_id, song_id, played_at, play_duration)
        VALUES ($1, $2, NOW(), 0)`,
       [userId, songId]
     );

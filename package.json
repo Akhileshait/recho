@@ -10,6 +10,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:fix": "node scripts/run-migration.js",
     "db:migrate:users": "node scripts/migrate-user-columns.js",
+    "db:migrate:songs": "node scripts/add-song-columns.js",
     "db:seed": "node scripts/seed.js",
     "db:seed:user": "node scripts/seed-user-history.js",
     "db:seed:testusers": "node scripts/seed-test-users.js",

@@ -34,9 +34,9 @@ export async function GET() {
         s.mood,
         s.duration,
         s.cover_url,
-        s.file_url,
+        s.url as file_url,
         s.play_count,
-        EXISTS(SELECT 1 FROM likes WHERE user_id = $1 AND song_id = s.id) as is_liked
+        EXISTS(SELECT 1 FROM song_likes WHERE user_id = $1 AND song_id = s.id) as is_liked
        FROM songs s
        ORDER BY s.created_at DESC
        LIMIT 500`,

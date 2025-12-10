@@ -14,12 +14,13 @@ interface PlayerState {
     currentSong: Song | null;
     volume: number;
     queue: Song[];
+    history: Song[];
     setIsPlaying: (isPlaying: boolean) => void;
     playSong: (song: Song) => void;
     setVolume: (volume: number) => void;
     addToQueue: (song: Song) => void;
     nextSong: () => void;
-    prevSong: () => void;
+    previousSong: () => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -27,19 +28,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     currentSong: null,
     volume: 1,
     queue: [],
+    history: [],
     setIsPlaying: (isPlaying) => set({ isPlaying }),
-    playSong: (song) => set({ currentSong: song, isPlaying: true }),
+    playSong: (song) => {
+        const { currentSong, history } = get();
+        // Add current song to history before playing new song
+        if (currentSong) {
+            set({ history: [...history, currentSong] });
+        }
+        set({ currentSong: song, isPlaying: true });
+    },
     setVolume: (volume) => set({ volume }),
     addToQueue: (song) => set((state) => ({ queue: [...state.queue, song] })),
     nextSong: () => {
-        const { queue, currentSong } = get();
-        // Simple queue logic for now
+        const { queue, currentSong, history } = get();
         if (queue.length > 0) {
             const next = queue[0];
+            // Add current song to history
+            if (currentSong) {
+                set({ history: [...history, currentSong] });
+            }
             set({ currentSong: next, queue: queue.slice(1) });
         }
     },
-    prevSong: () => {
-        // Implement previous song logic if history is tracked
+    previousSong: () => {
+        const { history, currentSong, queue } = get();
+        if (history.length > 0) {
+            const prev = history[history.length - 1];
+            // Add current song to queue
+            if (currentSong) {
+                set({ queue: [currentSong, ...queue] });
+            }
+            set({ currentSong: prev, history: history.slice(0, -1) });
+        }
     }
 }));

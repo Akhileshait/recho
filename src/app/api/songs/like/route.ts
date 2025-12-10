@@ -31,21 +31,21 @@ export async function POST(request: NextRequest) {
 
     // Check if already liked
     const likeRes = await query(
-      'SELECT id FROM likes WHERE user_id = $1 AND song_id = $2',
+      'SELECT user_id FROM song_likes WHERE user_id = $1 AND song_id = $2',
       [userId, songId]
     );
 
     if (likeRes.rows.length > 0) {
       // Unlike
       await query(
-        'DELETE FROM likes WHERE user_id = $1 AND song_id = $2',
+        'DELETE FROM song_likes WHERE user_id = $1 AND song_id = $2',
         [userId, songId]
       );
       return NextResponse.json({ success: true, liked: false });
     } else {
       // Like
       await query(
-        'INSERT INTO likes (user_id, song_id) VALUES ($1, $2)',
+        'INSERT INTO song_likes (user_id, song_id) VALUES ($1, $2)',
         [userId, songId]
       );
       return NextResponse.json({ success: true, liked: true });
