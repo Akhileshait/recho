@@ -9,7 +9,9 @@
     "start": "node server.js",
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:fix": "node scripts/run-migration.js",
-    "db:seed": "node scripts/seed.js"
+    "db:migrate:users": "node scripts/migrate-user-columns.js",
+    "db:seed": "node scripts/seed.js",
+    "db:seed:user": "node scripts/seed-user-history.js"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.3.6",

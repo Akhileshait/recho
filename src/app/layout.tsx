@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { getServerSession } from 'next-auth';
 import './globals.css';
 import { Sidebar } from '@/components/Sidebar';
+import { TopBar } from '@/components/TopBar';
 import { Player } from '@/components/Player';
 import { Providers } from '@/providers/Providers';
 import { cn } from '@/lib/utils';
@@ -28,9 +29,12 @@ export default async function RootLayout({
         <Providers session={session}>
           <div className="flex-1 flex overflow-hidden">
             <Sidebar />
-            <main className="flex-1 overflow-y-auto p-8 relative">
-              {children}
-            </main>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <TopBar />
+              <main className="flex-1 overflow-y-auto p-8">
+                {children}
+              </main>
+            </div>
           </div>
           <Player />
         </Providers>
