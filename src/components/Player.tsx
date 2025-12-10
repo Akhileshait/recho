@@ -16,28 +16,47 @@ export function Player() {
   const [isShuffled, setIsShuffled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
 
+  // Load new song when currentSong changes
+  useEffect(() => {
+    if (!audioRef.current || !currentSong) return;
+
+    const audio = audioRef.current;
+
+    // Pause current playback before loading new song
+    audio.pause();
+    audio.src = currentSong.url;
+    audio.load();
+
+    // Auto-play when ready
+    const playWhenReady = () => {
+      if (isPlaying) {
+        audio.play().catch(err => {
+          console.error('Playback error:', err);
+          setIsPlaying(false);
+        });
+      }
+    };
+
+    audio.addEventListener('canplay', playWhenReady, { once: true });
+
+    return () => {
+      audio.removeEventListener('canplay', playWhenReady);
+    };
+  }, [currentSong]);
+
   // Play/Pause audio when state changes
   useEffect(() => {
     if (!audioRef.current) return;
 
     if (isPlaying) {
-      audioRef.current.play().catch(err => console.error('Playback error:', err));
+      audioRef.current.play().catch(err => {
+        console.error('Playback error:', err);
+        setIsPlaying(false);
+      });
     } else {
       audioRef.current.pause();
     }
   }, [isPlaying]);
-
-  // Load new song when currentSong changes
-  useEffect(() => {
-    if (!audioRef.current || !currentSong) return;
-
-    audioRef.current.src = currentSong.url;
-    audioRef.current.load();
-
-    if (isPlaying) {
-      audioRef.current.play().catch(err => console.error('Playback error:', err));
-    }
-  }, [currentSong]);
 
   // Update volume
   useEffect(() => {
